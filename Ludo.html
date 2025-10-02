@@ -8,16 +8,23 @@
 </head>
 
 <body>
-
+    <div id="container"></div>
+    <button onclick="diceNumber()">Dice</button>
 </body>
 <style>
+    body{
+        margin: 0;
+        height: 100%;
+        width: 100%;
+    }
+
     div {
         height: 30px;
         width: 30px;
         border: 2px solid black;
     }
-
-    body {
+    
+    #container {
         width: 450px;
         display: grid;
         grid-template-columns: repeat(15, 30px);
@@ -33,14 +40,14 @@
             // id ={row:i, col:j}
             // console.log(id);
             d.setAttribute("id", `cell-${i}-${j}`)
-            document.body.appendChild(d);
+            sec.appendChild(d);
         }
     }
 
     function playerBlockColor(startRow, startCol, endRow, endCol, color) {
         for (let i = startRow; i < endRow; i++) {
             for (let j = startCol; j < endCol; j++) {
-                div = document.getElementById(`cell-${i}-${j}`);
+                let div = document.getElementById(`cell-${i}-${j}`);
                 div.setAttribute("style", `background: ${color}; border-color:${color}`);
             }
         }
@@ -49,7 +56,7 @@
     function playerPathColor(startRow, startCol, endRow, endCol, color) {
         for (let i = startRow; i < endRow; i++) {
             for (let j = startCol; j < endCol; j++) {
-                div = document.getElementById(`cell-${i}-${j}`);
+                let div = document.getElementById(`cell-${i}-${j}`);
                 div.setAttribute("style", `background: ${color}`);
             }
         }
@@ -76,31 +83,31 @@
 
     // const redPlayer = new Map();
     let red = [
-        { node: 1, row: 1, column: 1, out:"false" },
-        { node: 2, row: 1, column: 3, out:"false" },
-        { node: 3, row: 3, column: 1, out:"false" },
-        { node: 4, row: 3, column: 3, out:"false" }
+        { node: 1, row: 1, column: 1, out:"false", position: -1 },
+        { node: 2, row: 1, column: 3, out:"false", position: -1 },
+        { node: 3, row: 3, column: 1, out:"false", position: -1 },
+        { node: 4, row: 3, column: 3, out:"false", position: -1 }
     ];
 
     let green = [
-        { node: 1, row: 10, column: 10, out:"false" },
-        { node: 2, row: 10, column: 12, out:"false" },
-        { node: 3, row: 13, column: 10, out:"false" },
-        { node: 4, row: 13, column: 12, out:"false" }
+        { node: 1, row: 10, column: 10, out:"false", position: -1 },
+        { node: 2, row: 10, column: 12, out:"false", position: -1 },
+        { node: 3, row: 13, column: 10, out:"false", position: -1 },
+        { node: 4, row: 13, column: 12, out:"false", position: -1 }
     ]
     
     let yellow = [
-        { node: 1, row: 10, column: 1, out:"false" },
-        { node: 2, row: 10, column: 3, out:"false" },
-        { node: 3, row: 13, column: 1, out:"false" },
-        { node: 4, row: 13, column: 3, out:"false" }
+        { node: 1, row: 10, column: 1, out:"false", position: -1 },
+        { node: 2, row: 10, column: 3, out:"false", position: -1 },
+        { node: 3, row: 13, column: 1, out:"false", position: -1 },
+        { node: 4, row: 13, column: 3, out:"false", position: -1 }
     ]
 
     let blue = [
-        { node: 1, row: 1, column: 10, out:"false" },
-        { node: 2, row: 1, column: 12, out:"false" },
-        { node: 3, row: 3, column: 10, out:"false" },
-        { node: 4, row: 3, column: 12, out:"false" }
+        { node: 1, row: 1, column: 10, out:"false", position: -1 },
+        { node: 2, row: 1, column: 12, out:"false", position: -1 },
+        { node: 3, row: 3, column: 10, out:"false", position: -1 },
+        { node: 4, row: 3, column: 12, out:"false", position: -1 }
     ]
 
     function playerInBox(row, column, color) {
@@ -111,17 +118,27 @@
 
     red.forEach(element => {
         // console.log(element.node);
+        if(element.out==true){
+            playerInBox(element.row,element.column, "white");
+        }
         playerInBox(element.row, element.column, "red");
     });
     green.forEach(element =>{
         // console.log(element.node);
+        if(element.out==true){
+            playerInBox(element.row,element.column, "white");
+        }
         playerInBox(element.row,element.column, "green");
     })
     yellow.forEach(element =>{
+        if(element.out==true){
+            playerInBox(element.row,element.column, "white");
+        }
         // console.log(element.node);
         playerInBox(element.row,element.column, "yellow");
     })
     blue.forEach(element =>{
+        
         // console.log(element.node);
         playerInBox(element.row,element.column, "blue");
     })
@@ -141,10 +158,88 @@
     [7,0]
 ]
 
-    
-    for(i=0; i<path.length;i++){
-        console.log(path[i][0], path[i][1])
+console.log(path[23])
+
+    function clearCell(column, row){
+        let cell = document.getElementById(`cell-${row}-${column}`);
+        cell.setAttribute("style", "background: white; border: 2px solid black;")
+        console.log(row,":col ",column,":row","cell ",cell)
     }
+
+    function diceNumber(){
+        let randomNum = Math.floor(Math.random()*6+1)
+        console.log(randomNum ,": Random num")
+
+        let currentPlayerTokens = playersMap[turn];
+
+        console.log(currentPlayerTokens);
+        let tokenInBase = currentPlayerTokens.find(t => t.out === "false");
+        console.log(tokenInBase);
+
+        if(tokenInBase && randomNum === 6){
+            let startIndex;
+
+            if(turn == "red") startIndex = 1;
+            if(turn == "blue") startIndex = 14;
+            if(turn == "green") startIndex = 27;
+            if(turn == "yellow") startIndex = 40;
+                    clearCell(tokenInBase.column, tokenInBase.row)
+
+            let [col,row] = path[startIndex];
+            console.log(path[startIndex],"start")
+            tokenInBase.row = row;
+            tokenInBase.column = col;
+            tokenInBase.position = startIndex;
+            tokenInBase.out ="true";
+            console.log(tokenInBase.row,":row ",tokenInBase,":col");
+            playerInBox(tokenInBase.column, tokenInBase.row, turn);
+
+            console.log(turn,"moved a token ");
+        }else {
+            let tokenOnPath= currentPlayerTokens.find(t => t.out === "true");
+            
+            if(tokenOnPath){
+                let newPosition = tokenOnPath.position + randomNum;
+                if(newPosition< path.length){
+                    clearCell(tokenOnPath.column, tokenOnPath.row);
+                    let [row,col] = path[newPosition];
+                    console.log(path[newPosition]," new")
+                    tokenOnPath.row = row;
+                tokenOnPath.column = col;
+                tokenOnPath.position = newPosition;
+                console.log(tokenOnPath.column,":col ",tokenOnPath.row,":row ",tokenOnPath.position)
+
+                // playerInBox(row, col, turn);
+                
+                playerInBox(tokenOnPath.row, tokenOnPath.column, turn);
+                }
+            }else{
+                console.log("insideHouse");
+            }
+            
+        }
+
+        if (randomNum !== 6){
+            let currentIndex = players.indexOf(turn);
+            turn =players[(currentIndex+1)%players.length]
+        }
+        console.log("Next ", turn)
+
+        // if(red[0].out === "false" && randomNum === 6){
+       
+    // }
+    }
+
+    let players = ["red", "green", "blue", "yellow"]
+    let playersMap = {
+        red : red,
+        green : green,
+        blue : blue,
+        yellow : yellow
+    }
+    let turn = "red";
+
+    
     
 </script>
 
