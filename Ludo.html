@@ -35,7 +35,7 @@
       font-size: 20px;
     }
     .highlight {
-      box-shadow: 0 0 5px 3px yellow;
+      box-shadow: 0 0 5px 3px black;
     }
   </style>
 </head>
@@ -85,6 +85,7 @@
     paintBlock(7, 9, 8, 14, "green");
     paintBlock(6, 6, 9, 9, "black", true);
 
+    //Token path
     const path = [
       [6, 0], [6, 1], [6, 2], [6, 3], [6, 4], [6, 5],
       [5, 6], [4, 6], [3, 6], [2, 6], [1, 6], [0, 6],
@@ -164,7 +165,7 @@
 
       if (rolledValue === 6 && inBase.length === 1 && outTokens.length === 0) {
         moveToken(tokens.indexOf(inBase[0]), rolledValue);
-      } else if (outTokens.length === 1 && inBase.length === 0) {
+      } else if (outTokens.length === 1 && inBase.length === 3 && rolledValue !== 6) {
         moveToken(tokens.indexOf(outTokens[0]), rolledValue);
       } else if (outTokens.length + homeTokens.length > 1 || (rolledValue === 6 && inBase.length > 0)) {
         highlightMovableTokens(rolledValue);
