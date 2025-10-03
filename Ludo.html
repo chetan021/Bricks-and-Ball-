@@ -2,245 +2,255 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ludo Game</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        #container {
+            width: 450px;
+            display: grid;
+            grid-template-columns: repeat(15, 30px);
+            grid-template-rows: repeat(15, 30px);
+        }
+
+        div.cell {
+            height: 30px;
+            width: 30px;
+            border: 2px solid black;
+            box-sizing: border-box;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+    </style>
 </head>
 
 <body>
     <div id="container"></div>
-    <button onclick="diceNumber()">Dice</button>
-</body>
-<style>
-    body{
-        margin: 0;
-        height: 100%;
-        width: 100%;
-    }
+    <button onclick="diceNumber()">🎲 Roll Dice</button>
+    <script>
+        const container = document.getElementById("container");
 
-    div {
-        height: 30px;
-        width: 30px;
-        border: 2px solid black;
-    }
-    
-    #container {
-        width: 450px;
-        display: grid;
-        grid-template-columns: repeat(15, 30px);
-    }
-</style>
-<script>
-    let id;
-    let sec = document.getElementById("container")
-    for (let i = 0; i < 15; i++) {
-        for (let j = 0; j < 15; j++) {
-            let d = document.createElement("div");
-            // console.log(d)
-            // id ={row:i, col:j}
-            // console.log(id);
-            d.setAttribute("id", `cell-${i}-${j}`)
-            sec.appendChild(d);
-        }
-    }
-
-    function playerBlockColor(startRow, startCol, endRow, endCol, color) {
-        for (let i = startRow; i < endRow; i++) {
-            for (let j = startCol; j < endCol; j++) {
-                let div = document.getElementById(`cell-${i}-${j}`);
-                div.setAttribute("style", `background: ${color}; border-color:${color}`);
+        // Create 15x15 grid
+        for (let i = 0; i < 15; i++) {
+            for (let j = 0; j < 15; j++) {
+                const cell = document.createElement("div");
+                cell.classList.add("cell");
+                cell.id = `cell-${i}-${j}`;
+                container.appendChild(cell);
             }
         }
-    }
 
-    function playerPathColor(startRow, startCol, endRow, endCol, color) {
-        for (let i = startRow; i < endRow; i++) {
-            for (let j = startCol; j < endCol; j++) {
-                let div = document.getElementById(`cell-${i}-${j}`);
-                div.setAttribute("style", `background: ${color}`);
-            }
-        }
-    }
-
-    playerBlockColor(0, 0, 6, 6, "red");
-    playerBlockColor(0, 9, 6, 15, "blue");
-    playerBlockColor(9, 9, 15, 15, "green");
-    playerBlockColor(9, 0, 15, 6, "yellow");
-
-    playerPathColor(7, 1, 8, 6, "red");
-    playerPathColor(1, 7, 6, 8, "blue");
-    playerPathColor(9, 7, 14, 8, "yellow");
-    playerPathColor(7, 9, 8, 14, "green")
-    // playerBlockColor()
-
-    for (let i = 6; i < 9; i++) {
-        for (let j = 6; j < 9; j++) {
-            div = document.getElementById(`cell-${i}-${j}`);
-            div.setAttribute("style", "background: black; border-color: black");
-
-        }
-    }
-
-    // const redPlayer = new Map();
-    let red = [
-        { node: 1, row: 1, column: 1, out:"false", position: -1 },
-        { node: 2, row: 1, column: 3, out:"false", position: -1 },
-        { node: 3, row: 3, column: 1, out:"false", position: -1 },
-        { node: 4, row: 3, column: 3, out:"false", position: -1 }
-    ];
-
-    let green = [
-        { node: 1, row: 10, column: 10, out:"false", position: -1 },
-        { node: 2, row: 10, column: 12, out:"false", position: -1 },
-        { node: 3, row: 13, column: 10, out:"false", position: -1 },
-        { node: 4, row: 13, column: 12, out:"false", position: -1 }
-    ]
-    
-    let yellow = [
-        { node: 1, row: 10, column: 1, out:"false", position: -1 },
-        { node: 2, row: 10, column: 3, out:"false", position: -1 },
-        { node: 3, row: 13, column: 1, out:"false", position: -1 },
-        { node: 4, row: 13, column: 3, out:"false", position: -1 }
-    ]
-
-    let blue = [
-        { node: 1, row: 1, column: 10, out:"false", position: -1 },
-        { node: 2, row: 1, column: 12, out:"false", position: -1 },
-        { node: 3, row: 3, column: 10, out:"false", position: -1 },
-        { node: 4, row: 3, column: 12, out:"false", position: -1 }
-    ]
-
-    function playerInBox(row, column, color) {
-        let playerRed1 = document.getElementById(`cell-${row}-${column}`);
-        playerRed1.setAttribute("style", `background: ${color};  border-radius:50%;`);
-
-    }
-
-    red.forEach(element => {
-        // console.log(element.node);
-        if(element.out==true){
-            playerInBox(element.row,element.column, "white");
-        }
-        playerInBox(element.row, element.column, "red");
-    });
-    green.forEach(element =>{
-        // console.log(element.node);
-        if(element.out==true){
-            playerInBox(element.row,element.column, "white");
-        }
-        playerInBox(element.row,element.column, "green");
-    })
-    yellow.forEach(element =>{
-        if(element.out==true){
-            playerInBox(element.row,element.column, "white");
-        }
-        // console.log(element.node);
-        playerInBox(element.row,element.column, "yellow");
-    })
-    blue.forEach(element =>{
-        
-        // console.log(element.node);
-        playerInBox(element.row,element.column, "blue");
-    })
-
-    let path = [
-    [6, 0], [6, 1], [6, 2], [6, 3], [6, 4], [6, 5], 
-    [5, 6], [4, 6], [3, 6], [2, 6], [1, 6],[0, 6],
-    [0, 7], 
-    [0, 8], [1, 8], [2,8], [3,8], [4,8], [5,8],
-    [6, 9], [6,10], [6,11],[6,12],[6,13],[6,14],
-    [7, 14],
-    [8, 14], [8, 13],[8, 12],[8, 11],[8, 10],[8, 9],
-    [9,8],[10,8],[11,8],[12,8],[13,8],[14,8],
-    [14,7],
-    [14,6],[13,6],[12,6],[11,6],[10,6],[9,6],
-    [8,5],[8,4],[8,3],[8,2],[8,1],[8,0],
-    [7,0]
-]
-
-console.log(path[23])
-
-    function clearCell(column, row){
-        let cell = document.getElementById(`cell-${row}-${column}`);
-        cell.setAttribute("style", "background: white; border: 2px solid black;")
-        console.log(row,":col ",column,":row","cell ",cell)
-    }
-
-    function diceNumber(){
-        let randomNum = Math.floor(Math.random()*6+1)
-        console.log(randomNum ,": Random num")
-
-        let currentPlayerTokens = playersMap[turn];
-
-        console.log(currentPlayerTokens);
-        let tokenInBase = currentPlayerTokens.find(t => t.out === "false");
-        console.log(tokenInBase);
-
-        if(tokenInBase && randomNum === 6){
-            let startIndex;
-
-            if(turn == "red") startIndex = 1;
-            if(turn == "blue") startIndex = 14;
-            if(turn == "green") startIndex = 27;
-            if(turn == "yellow") startIndex = 40;
-                    clearCell(tokenInBase.column, tokenInBase.row)
-
-            let [col,row] = path[startIndex];
-            console.log(path[startIndex],"start")
-            tokenInBase.row = row;
-            tokenInBase.column = col;
-            tokenInBase.position = startIndex;
-            tokenInBase.out ="true";
-            console.log(tokenInBase.row,":row ",tokenInBase,":col");
-            playerInBox(tokenInBase.column, tokenInBase.row, turn);
-
-            console.log(turn,"moved a token ");
-        }else {
-            let tokenOnPath= currentPlayerTokens.find(t => t.out === "true");
-            
-            if(tokenOnPath){
-                let newPosition = tokenOnPath.position + randomNum;
-                if(newPosition< path.length){
-                    clearCell(tokenOnPath.column, tokenOnPath.row);
-                    let [row,col] = path[newPosition];
-                    console.log(path[newPosition]," new")
-                    tokenOnPath.row = row;
-                tokenOnPath.column = col;
-                tokenOnPath.position = newPosition;
-                console.log(tokenOnPath.column,":col ",tokenOnPath.row,":row ",tokenOnPath.position)
-
-                // playerInBox(row, col, turn);
-                
-                playerInBox(tokenOnPath.row, tokenOnPath.column, turn);
+        // Players Start Place function
+        function paintBlock(rowStart, colStart, rowEnd, colEnd, color, border = false) {
+            for (let i = rowStart; i < rowEnd; i++) {
+                for (let j = colStart; j < colEnd; j++) {
+                    const cell = document.getElementById(`cell-${i}-${j}`);
+                    cell.style.background = color;
+                    if (border) cell.style.borderColor = color;
                 }
-            }else{
-                console.log("insideHouse");
             }
-            
         }
 
-        if (randomNum !== 6){
-            let currentIndex = players.indexOf(turn);
-            turn =players[(currentIndex+1)%players.length]
+        // Base colors
+        paintBlock(0, 0, 6, 6, "red", true);
+        paintBlock(0, 9, 6, 15, "blue", true);
+        paintBlock(9, 0, 15, 6, "yellow", true);
+        paintBlock(9, 9, 15, 15, "green", true);
+
+        // Path colors
+        paintBlock(7, 1, 8, 6, "red");
+        paintBlock(1, 7, 6, 8, "blue");
+        paintBlock(9, 7, 14, 8, "yellow");
+        paintBlock(7, 9, 8, 14, "green");
+
+        // Center
+        paintBlock(6, 6, 9, 9, "black", true);
+
+        // Path positions
+        const path = [
+            [6, 0], [6, 1], [6, 2], [6, 3], [6, 4], [6, 5],
+            [5, 6], [4, 6], [3, 6], [2, 6], [1, 6], [0, 6],
+            [0, 7], [0, 8], [1, 8], [2, 8], [3, 8], [4, 8], [5, 8],
+            [6, 9], [6, 10], [6, 11], [6, 12], [6, 13], [6, 14],
+            [7, 14],
+            [8, 14], [8, 13], [8, 12], [8, 11], [8, 10], [8, 9],
+            [9, 8], [10, 8], [11, 8], [12, 8], [13, 8], [14, 8],
+            [14, 7],
+            [14, 6], [13, 6], [12, 6], [11, 6], [10, 6], [9, 6],
+            [8, 5], [8, 4], [8, 3], [8, 2], [8, 1], [8, 0],
+            [7, 0]
+        ];
+
+        const homePaths = {
+            red: [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6]],
+            blue: [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7]],
+            green: [[7, 13], [7, 12], [7, 11], [7, 10], [7, 9], [7, 8]],
+            yellow: [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7], [8, 7]]
+        };
+
+        const startPositions = {
+            red: 1,
+            blue: 14,
+            green: 27,
+            yellow: 40
+        };
+
+        const homeEntryIndex = {
+            red: 50,
+            blue: 11,
+            green: 24,
+            yellow: 37
+        };
+
+        const players = ["red", "blue", "green", "yellow"];
+        let turn = "red";
+
+        const playersMap = {
+            red: createTokens(1, 1, "red"),
+            green: createTokens(10, 10, "green"),
+            yellow: createTokens(10, 1, "yellow"),
+            blue: createTokens(1, 10, "blue")
+        };
+
+        function createTokens(baseRow, baseCol, color) {
+            return [
+                { row: baseRow, column: baseCol, out: false, position: -1, homeIndex: -1, stepsMoved: 0, color },
+                { row: baseRow, column: baseCol + 2, out: false, position: -1, homeIndex: -1, stepsMoved: 0, color },
+                { row: baseRow + 2, column: baseCol, out: false, position: -1, homeIndex: -1, stepsMoved: 0, color },
+                { row: baseRow + 2, column: baseCol + 2, out: false, position: -1, homeIndex: -1, stepsMoved: 0, color }
+            ];
         }
-        console.log("Next ", turn)
 
-        // if(red[0].out === "false" && randomNum === 6){
-       
-    // }
-    }
+        function drawToken(row, col, color) {
+            const cell = document.getElementById(`cell-${row}-${col}`);
+            cell.style.background = color;
+            cell.style.borderRadius = "50%";
+        }
 
-    let players = ["red", "green", "blue", "yellow"]
-    let playersMap = {
-        red : red,
-        green : green,
-        blue : blue,
-        yellow : yellow
-    }
-    let turn = "red";
+        function clearCell(row, col) {
+            const cell = document.getElementById(`cell-${row}-${col}`);
+            cell.style.background = "white";
+            cell.style.border = "2px solid black";
+            cell.style.borderRadius = "0%";
+        }
 
-    
-    
-</script>
+        function drawAllTokens() {
+            for (const color of players) {
+                playersMap[color].forEach(t => {
+                    drawToken(t.row, t.column, color);
+                });
+            }
+        }
+
+        drawAllTokens();
+
+        function diceNumber() {
+            const roll = Math.floor(Math.random() * 6 + 1);
+            console.log(`🎲 ${turn} rolled: ${roll}`);
+
+            const tokens = playersMap[turn];
+            const tokenInBase = tokens.find(t => !t.out);
+
+            if (roll === 6 && tokenInBase) {
+                const startIndex = startPositions[turn];
+                const [r, c] = path[startIndex];
+                clearCell(tokenInBase.row, tokenInBase.column);
+                tokenInBase.row = r;
+                tokenInBase.column = c;
+                tokenInBase.position = startIndex;
+                tokenInBase.out = true;
+                tokenInBase.stepsMoved = 1;
+                drawToken(r, c, turn);
+                checkCollision(tokenInBase);
+            } else {
+                const tokenOnPath = tokens.find(t => t.out && t.homeIndex === -1);
+                if (tokenOnPath) {
+                    clearCell(tokenOnPath.row, tokenOnPath.column);
+
+                    const newSteps = tokenOnPath.stepsMoved + roll;
+
+                    if (newSteps === path.length) {
+                        // Enters home path
+                        tokenOnPath.position = -1;
+                        tokenOnPath.homeIndex = 0;
+                        const [r, c] = homePaths[turn][0];
+                        tokenOnPath.row = r;
+                        tokenOnPath.column = c;
+                        drawToken(r, c, turn);
+                    } else if (newSteps < path.length) {
+                        // Still in global path
+                        tokenOnPath.stepsMoved = newSteps;
+                        let newPos = (tokenOnPath.position + roll) % path.length;
+                        tokenOnPath.position = newPos;
+                        const [r, c] = path[newPos];
+                        tokenOnPath.row = r;
+                        tokenOnPath.column = c;
+                        drawToken(r, c, turn);
+                        checkCollision(tokenOnPath);
+                    } else {
+                        // Cannot move (overshoots home path)
+                        console.log("Can't move: overshooting home entry");
+                        drawToken(tokenOnPath.row, tokenOnPath.column, turn);
+                    }
+
+                } else {
+                    const tokenInHome = tokens.find(t => t.homeIndex >= 0 && t.homeIndex < 5);
+                    if (tokenInHome && tokenInHome.homeIndex + roll <= 5) {
+                        clearCell(tokenInHome.row, tokenInHome.column);
+                        tokenInHome.homeIndex += roll;
+                        const [r, c] = homePaths[turn][tokenInHome.homeIndex];
+                        tokenInHome.row = r;
+                        tokenInHome.column = c;
+                        drawToken(r, c, turn);
+                    } else {
+                        console.log("No move possible in home path.");
+                    }
+                }
+            }
+
+            drawAllTokens();
+
+            if (roll !== 6) {
+                const idx = players.indexOf(turn);
+                turn = players[(idx + 1) % players.length];
+            }
+        }
+
+
+        function checkCollision(token) {
+            for (const color of players) {
+                if (color === token.color) continue;
+
+                playersMap[color].forEach(t => {
+                    if (t.out && t.row === token.row && t.column === token.column) {
+                        // Send opponent home
+                        console.log(`${color} token sent home!`);
+                        clearCell(t.row, t.column);
+                        const baseTokens = createTokens(
+                            color === "red" ? 1 : color === "blue" ? 1 : 10,
+                            color === "red" || color === "yellow" ? 1 : 10,
+                            color
+                        );
+                        const idx = playersMap[color].indexOf(t);
+                        playersMap[color][idx] = baseTokens[idx]; // Reset
+                    }
+                });
+            }
+        }
+    </script>
+</body>
 
 </html>
