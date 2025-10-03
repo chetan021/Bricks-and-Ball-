@@ -1,256 +1,257 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ludo Game</title>
-    <style>
-        body {
-            margin: 0;
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-        }
-
-        #container {
-            width: 450px;
-            display: grid;
-            grid-template-columns: repeat(15, 30px);
-            grid-template-rows: repeat(15, 30px);
-        }
-
-        div.cell {
-            height: 30px;
-            width: 30px;
-            border: 2px solid black;
-            box-sizing: border-box;
-        }
-
-        button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ludo Game</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    #container {
+      width: 450px;
+      display: grid;
+      grid-template-columns: repeat(15, 30px);
+      grid-template-rows: repeat(15, 30px);
+    }
+    .cell {
+      height: 30px;
+      width: 30px;
+      border: 2px solid black;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+    #dice {
+      margin-top: 10px;
+      font-size: 20px;
+    }
+    .highlight {
+      box-shadow: 0 0 5px 3px yellow;
+    }
+  </style>
 </head>
-
 <body>
-    <div id="container"></div>
-    <button onclick="diceNumber()">🎲 Roll Dice</button>
-    <script>
-        const container = document.getElementById("container");
 
-        // Create 15x15 grid
-        for (let i = 0; i < 15; i++) {
-            for (let j = 0; j < 15; j++) {
-                const cell = document.createElement("div");
-                cell.classList.add("cell");
-                cell.id = `cell-${i}-${j}`;
-                container.appendChild(cell);
-            }
+  <div id="container"></div>
+  <button id="rollBtn">🎲 Roll Dice</button>
+  <div id="dice">🎲</div>
+
+  <script>
+    const container = document.getElementById("container");
+    const diceDisplay = document.getElementById("dice");
+    const rollBtn = document.getElementById("rollBtn");
+
+    const ROWS = 15, COLS = 15;
+    const cellColors = [];
+    for (let i = 0; i < ROWS; i++) {
+      cellColors[i] = [];
+      for (let j = 0; j < COLS; j++) {
+        const cell = document.createElement("div");
+        cell.classList.add("cell");
+        cell.id = `cell-${i}-${j}`;
+        cellColors[i][j] = "white";
+        container.appendChild(cell);
+      }
+    }
+
+    function paintBlock(r1, c1, r2, c2, color, border = false) {
+      for (let i = r1; i < r2; i++) {
+        for (let j = c1; j < c2; j++) {
+          const cell = document.getElementById(`cell-${i}-${j}`);
+          cell.style.background = color;
+          if (border) cell.style.borderColor = color;
+          cellColors[i][j] = color;
         }
+      }
+    }
 
-        // Players Start Place function
-        function paintBlock(rowStart, colStart, rowEnd, colEnd, color, border = false) {
-            for (let i = rowStart; i < rowEnd; i++) {
-                for (let j = colStart; j < colEnd; j++) {
-                    const cell = document.getElementById(`cell-${i}-${j}`);
-                    cell.style.background = color;
-                    if (border) cell.style.borderColor = color;
-                }
-            }
+    // Paint board
+    paintBlock(0, 0, 6, 6, "red", true);
+    paintBlock(0, 9, 6, 15, "blue", true);
+    paintBlock(9, 0, 15, 6, "yellow", true);
+    paintBlock(9, 9, 15, 15, "green", true);
+    paintBlock(7, 1, 8, 6, "red");
+    paintBlock(1, 7, 6, 8, "blue");
+    paintBlock(9, 7, 14, 8, "yellow");
+    paintBlock(7, 9, 8, 14, "green");
+    paintBlock(6, 6, 9, 9, "black", true);
+
+    const path = [
+      [6, 0], [6, 1], [6, 2], [6, 3], [6, 4], [6, 5],
+      [5, 6], [4, 6], [3, 6], [2, 6], [1, 6], [0, 6],
+      [0, 7], [0, 8], [1, 8], [2, 8], [3, 8], [4, 8], [5, 8],
+      [6, 9], [6, 10], [6, 11], [6, 12], [6, 13], [6, 14],
+      [7, 14],
+      [8, 14], [8, 13], [8, 12], [8, 11], [8, 10], [8, 9],
+      [9, 8], [10, 8], [11, 8], [12, 8], [13, 8], [14, 8],
+      [14, 7],
+      [14, 6], [13, 6], [12, 6], [11, 6], [10, 6], [9, 6],
+      [8, 5], [8, 4], [8, 3], [8, 2], [8, 1], [8, 0],
+      [7, 0]
+    ];
+
+    const homePaths = {
+      red: [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6]],
+      blue: [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7]],
+      green: [[7, 13], [7, 12], [7, 11], [7, 10], [7, 9], [7, 8]],
+      yellow: [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7], [8, 7]]
+    };
+
+    const startPositions = { red: 1, blue: 14, green: 27, yellow: 40 };
+    const players = ["red", "blue", "green", "yellow"];
+    let turn = "red";
+    let rolledValue = 0;
+
+    const playersMap = {
+      red: createTokens(1, 1, "red"),
+      blue: createTokens(1, 10, "blue"),
+      yellow: createTokens(10, 1, "yellow"),
+      green: createTokens(10, 10, "green")
+    };
+
+    function createTokens(baseRow, baseCol, color) {
+      return [
+        { row: baseRow, column: baseCol, out: false, position: -1, homeIndex: -1, stepsMoved: 0, color },
+        { row: baseRow, column: baseCol + 2, out: false, position: -1, homeIndex: -1, stepsMoved: 0, color },
+        { row: baseRow + 2, column: baseCol, out: false, position: -1, homeIndex: -1, stepsMoved: 0, color },
+        { row: baseRow + 2, column: baseCol + 2, out: false, position: -1, homeIndex: -1, stepsMoved: 0, color }
+      ];
+    }
+
+    function drawToken(row, col, color) {
+      const cell = document.getElementById(`cell-${row}-${col}`);
+      cell.style.background = color;
+      cell.style.borderRadius = "50%";
+    }
+
+    function clearCell(row, col) {
+      const cell = document.getElementById(`cell-${row}-${col}`);
+      cell.style.background = cellColors[row][col];
+      cell.style.borderRadius = "0%";
+    }
+
+    function drawAllTokens() {
+      players.forEach(color => {
+        playersMap[color].forEach(t => drawToken(t.row, t.column, color));
+      });
+    }
+
+    function clearHighlights() {
+      document.querySelectorAll(".highlight").forEach(cell => {
+        cell.classList.remove("highlight");
+        cell.onclick = null;
+      });
+    }
+
+    function diceNumber() {
+      rollBtn.disabled = true;
+      rolledValue = Math.floor(Math.random() * 6) + 1;
+      diceDisplay.textContent = `🎲 ${turn.toUpperCase()} rolled: ${rolledValue}`;
+
+      const tokens = playersMap[turn];
+      const outTokens = tokens.filter(t => t.out && t.homeIndex === -1);
+      const homeTokens = tokens.filter(t => t.homeIndex >= 0 && t.homeIndex < 6);
+      const inBase = tokens.filter(t => !t.out);
+
+      if (rolledValue === 6 && inBase.length === 1 && outTokens.length === 0) {
+        moveToken(tokens.indexOf(inBase[0]), rolledValue);
+      } else if (outTokens.length === 1 && inBase.length === 0) {
+        moveToken(tokens.indexOf(outTokens[0]), rolledValue);
+      } else if (outTokens.length + homeTokens.length > 1 || (rolledValue === 6 && inBase.length > 0)) {
+        highlightMovableTokens(rolledValue);
+      } else {
+        nextTurn();
+      }
+    }
+
+    function highlightMovableTokens(roll) {
+      const tokens = playersMap[turn];
+      tokens.forEach((token, index) => {
+        const cell = document.getElementById(`cell-${token.row}-${token.column}`);
+        cell.onclick = () => moveToken(index, roll);
+        cell.classList.add("highlight");
+      });
+    }
+
+    function moveToken(index, roll) {
+      clearHighlights();
+      const token = playersMap[turn][index];
+
+      if (!token.out && roll === 6) {
+        const startIndex = startPositions[turn];
+        const [r, c] = path[startIndex];
+        clearCell(token.row, token.column);
+        Object.assign(token, { out: true, position: startIndex, stepsMoved: 1, row: r, column: c });
+        drawToken(r, c, turn);
+      } else if (token.out && token.homeIndex === -1) {
+        const newSteps = token.stepsMoved + roll;
+        if (newSteps === path.length) {
+          const [r, c] = homePaths[turn][0];
+          clearCell(token.row, token.column);
+          Object.assign(token, { position: -1, homeIndex: 0, row: r, column: c });
+        } else if (newSteps < path.length) {
+          clearCell(token.row, token.column);
+          token.stepsMoved = newSteps;
+          token.position = (token.position + roll) % path.length;
+          const [r, c] = path[token.position];
+          Object.assign(token, { row: r, column: c });
+          checkCollision(token);
         }
+      } else if (token.homeIndex >= 0 && token.homeIndex + roll <= 5) {
+        clearCell(token.row, token.column);
+        token.homeIndex += roll;
+        const [r, c] = homePaths[turn][token.homeIndex];
+        Object.assign(token, { row: r, column: c });
+      }
 
-        // Base colors
-        paintBlock(0, 0, 6, 6, "red", true);
-        paintBlock(0, 9, 6, 15, "blue", true);
-        paintBlock(9, 0, 15, 6, "yellow", true);
-        paintBlock(9, 9, 15, 15, "green", true);
+      drawAllTokens();
+      checkWin(turn);
+      if (roll !== 6) nextTurn();
+      else rollBtn.disabled = false;
+    }
 
-        // Path colors
-        paintBlock(7, 1, 8, 6, "red");
-        paintBlock(1, 7, 6, 8, "blue");
-        paintBlock(9, 7, 14, 8, "yellow");
-        paintBlock(7, 9, 8, 14, "green");
+    function checkCollision(token) {
+      players.forEach(color => {
+        if (color === token.color) return;
+        playersMap[color].forEach((t, i) => {
+          if (t.out && t.row === token.row && t.column === token.column) {
+            clearCell(t.row, t.column);
+            playersMap[color][i] = createTokens(
+              color === "red" ? 1 : color === "blue" ? 1 : 10,
+              color === "red" || color === "yellow" ? 1 : 10,
+              color
+            )[i];
+          }
+        });
+      });
+    }
 
-        // Center
-        paintBlock(6, 6, 9, 9, "black", true);
+    function checkWin(color) {
+      const playerTokens = playersMap[color];
+      if (playerTokens.every(t => t.homeIndex === 5)) {
+        alert(`${color.toUpperCase()} wins the game! 🎉`);
+        rollBtn.disabled = true;
+      }
+    }
 
-        // Path positions
-        const path = [
-            [6, 0], [6, 1], [6, 2], [6, 3], [6, 4], [6, 5],
-            [5, 6], [4, 6], [3, 6], [2, 6], [1, 6], [0, 6],
-            [0, 7], [0, 8], [1, 8], [2, 8], [3, 8], [4, 8], [5, 8],
-            [6, 9], [6, 10], [6, 11], [6, 12], [6, 13], [6, 14],
-            [7, 14],
-            [8, 14], [8, 13], [8, 12], [8, 11], [8, 10], [8, 9],
-            [9, 8], [10, 8], [11, 8], [12, 8], [13, 8], [14, 8],
-            [14, 7],
-            [14, 6], [13, 6], [12, 6], [11, 6], [10, 6], [9, 6],
-            [8, 5], [8, 4], [8, 3], [8, 2], [8, 1], [8, 0],
-            [7, 0]
-        ];
+    function nextTurn() {
+      const idx = players.indexOf(turn);
+      turn = players[(idx + 1) % players.length];
+      rollBtn.disabled = false;
+      diceDisplay.textContent = `Next: ${turn.toUpperCase()}`;
+    }
 
-        const homePaths = {
-            red: [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6]],
-            blue: [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7]],
-            green: [[7, 13], [7, 12], [7, 11], [7, 10], [7, 9], [7, 8]],
-            yellow: [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7], [8, 7]]
-        };
-
-        const startPositions = {
-            red: 1,
-            blue: 14,
-            green: 27,
-            yellow: 40
-        };
-
-        const homeEntryIndex = {
-            red: 50,
-            blue: 11,
-            green: 24,
-            yellow: 37
-        };
-
-        const players = ["red", "blue", "green", "yellow"];
-        let turn = "red";
-
-        const playersMap = {
-            red: createTokens(1, 1, "red"),
-            green: createTokens(10, 10, "green"),
-            yellow: createTokens(10, 1, "yellow"),
-            blue: createTokens(1, 10, "blue")
-        };
-
-        function createTokens(baseRow, baseCol, color) {
-            return [
-                { row: baseRow, column: baseCol, out: false, position: -1, homeIndex: -1, stepsMoved: 0, color },
-                { row: baseRow, column: baseCol + 2, out: false, position: -1, homeIndex: -1, stepsMoved: 0, color },
-                { row: baseRow + 2, column: baseCol, out: false, position: -1, homeIndex: -1, stepsMoved: 0, color },
-                { row: baseRow + 2, column: baseCol + 2, out: false, position: -1, homeIndex: -1, stepsMoved: 0, color }
-            ];
-        }
-
-        function drawToken(row, col, color) {
-            const cell = document.getElementById(`cell-${row}-${col}`);
-            cell.style.background = color;
-            cell.style.borderRadius = "50%";
-        }
-
-        function clearCell(row, col) {
-            const cell = document.getElementById(`cell-${row}-${col}`);
-            cell.style.background = "white";
-            cell.style.border = "2px solid black";
-            cell.style.borderRadius = "0%";
-        }
-
-        function drawAllTokens() {
-            for (const color of players) {
-                playersMap[color].forEach(t => {
-                    drawToken(t.row, t.column, color);
-                });
-            }
-        }
-
-        drawAllTokens();
-
-        function diceNumber() {
-            const roll = Math.floor(Math.random() * 6 + 1);
-            console.log(`🎲 ${turn} rolled: ${roll}`);
-
-            const tokens = playersMap[turn];
-            const tokenInBase = tokens.find(t => !t.out);
-
-            if (roll === 6 && tokenInBase) {
-                const startIndex = startPositions[turn];
-                const [r, c] = path[startIndex];
-                clearCell(tokenInBase.row, tokenInBase.column);
-                tokenInBase.row = r;
-                tokenInBase.column = c;
-                tokenInBase.position = startIndex;
-                tokenInBase.out = true;
-                tokenInBase.stepsMoved = 1;
-                drawToken(r, c, turn);
-                checkCollision(tokenInBase);
-            } else {
-                const tokenOnPath = tokens.find(t => t.out && t.homeIndex === -1);
-                if (tokenOnPath) {
-                    clearCell(tokenOnPath.row, tokenOnPath.column);
-
-                    const newSteps = tokenOnPath.stepsMoved + roll;
-
-                    if (newSteps === path.length) {
-                        // Enters home path
-                        tokenOnPath.position = -1;
-                        tokenOnPath.homeIndex = 0;
-                        const [r, c] = homePaths[turn][0];
-                        tokenOnPath.row = r;
-                        tokenOnPath.column = c;
-                        drawToken(r, c, turn);
-                    } else if (newSteps < path.length) {
-                        // Still in global path
-                        tokenOnPath.stepsMoved = newSteps;
-                        let newPos = (tokenOnPath.position + roll) % path.length;
-                        tokenOnPath.position = newPos;
-                        const [r, c] = path[newPos];
-                        tokenOnPath.row = r;
-                        tokenOnPath.column = c;
-                        drawToken(r, c, turn);
-                        checkCollision(tokenOnPath);
-                    } else {
-                        // Cannot move (overshoots home path)
-                        console.log("Can't move: overshooting home entry");
-                        drawToken(tokenOnPath.row, tokenOnPath.column, turn);
-                    }
-
-                } else {
-                    const tokenInHome = tokens.find(t => t.homeIndex >= 0 && t.homeIndex < 5);
-                    if (tokenInHome && tokenInHome.homeIndex + roll <= 5) {
-                        clearCell(tokenInHome.row, tokenInHome.column);
-                        tokenInHome.homeIndex += roll;
-                        const [r, c] = homePaths[turn][tokenInHome.homeIndex];
-                        tokenInHome.row = r;
-                        tokenInHome.column = c;
-                        drawToken(r, c, turn);
-                    } else {
-                        console.log("No move possible in home path.");
-                    }
-                }
-            }
-
-            drawAllTokens();
-
-            if (roll !== 6) {
-                const idx = players.indexOf(turn);
-                turn = players[(idx + 1) % players.length];
-            }
-        }
-
-
-        function checkCollision(token) {
-            for (const color of players) {
-                if (color === token.color) continue;
-
-                playersMap[color].forEach(t => {
-                    if (t.out && t.row === token.row && t.column === token.column) {
-                        // Send opponent home
-                        console.log(`${color} token sent home!`);
-                        clearCell(t.row, t.column);
-                        const baseTokens = createTokens(
-                            color === "red" ? 1 : color === "blue" ? 1 : 10,
-                            color === "red" || color === "yellow" ? 1 : 10,
-                            color
-                        );
-                        const idx = playersMap[color].indexOf(t);
-                        playersMap[color][idx] = baseTokens[idx]; // Reset
-                    }
-                });
-            }
-        }
-    </script>
+    rollBtn.addEventListener("click", diceNumber);
+    drawAllTokens();
+  </script>
 </body>
-
 </html>
