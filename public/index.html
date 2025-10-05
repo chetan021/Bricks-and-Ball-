@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ludo Game</title>
+  <title>Ludo Multiplayer</title>
   <style>
     body {
       margin: 0;
@@ -36,20 +36,99 @@
     }
     .highlight {
       box-shadow: 0 0 5px 3px black;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-
   <div id="container"></div>
   <button id="rollBtn">🎲 Roll Dice</button>
   <div id="dice">🎲</div>
 
+  <!-- Socket.IO client -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-    const container = document.getElementById("container");
-    const diceDisplay = document.getElementById("dice");
-    const rollBtn = document.getElementById("rollBtn");
+    const socket = io();  // assumes same origin / server serves this page
 
+    // Room & player setup
+    let roomId = prompt("Enter Room ID:");
+    let isHost = confirm("Are you the host?");
+    let playerColor = "";
+    let maxPlayers = 4;
+    let activePlayers = [];
+
+    if (isHost) {
+      maxPlayers = parseInt(prompt("How many players? (2-4)")) || 4;
+      socket.emit("createRoom", { roomId, maxPlayers });
+    } else {
+      socket.emit("joinRoom", roomId);
+    }
+
+    socket.on("roomCreated", data => {
+      playerColor = data.color;
+      alert("Room created. You are " + playerColor);
+    });
+
+    socket.on("roomJoined", data => {
+      playerColor = data.color;
+      alert("Joined room. You are " + playerColor);
+    });
+
+    socket.on("playerJoined", ({ players }) => {
+      console.log("Players now in room:", players);
+    });
+
+    socket.on("startGame", ({ players }) => {
+      activePlayers = players;
+      setupPlayersMap();
+      drawAllTokens();
+      turn = activePlayers[0];
+      diceDisplay.textContent = `🎲 ${turn.toUpperCase()}'s turn`;
+      rollBtn.disabled = (playerColor !== turn);
+    });
+
+    socket.on("diceRolled", ({ value, color }) => {
+      diceDisplay.textContent = `🎲 ${color.toUpperCase()} rolled: ${value}`;
+      rolledValue = value;
+      turn = color;
+      if (color === playerColor) {
+        rollBtn.disabled = true;
+        highlightMovableTokens(rolledValue);
+      } else {
+        rollBtn.disabled = true;
+        clearHighlights();
+      }
+    });
+
+    socket.on("tokenMoved", ({ index, color, tokenData }) => {
+      playersMap[color][index] = tokenData;
+      drawAllTokens();
+      if (color === playerColor && rolledValue !== 6) {
+        nextTurn();
+      } else if (color !== playerColor && rolledValue !== 6) {
+        nextTurn();
+      } else {
+        // if roll was 6, that same player continues
+        if (turn === playerColor) {
+          rollBtn.disabled = false;
+        }
+      }
+    });
+
+    socket.on("playerLeft", () => {
+      alert("A player has left. Game may be disrupted.");
+    });
+
+    const rollBtn = document.getElementById("rollBtn");
+    const diceDisplay = document.getElementById("dice");
+    rollBtn.addEventListener("click", () => {
+      if (playerColor === turn) {
+        socket.emit("rollDice", { roomId, color: playerColor });
+      }
+    });
+
+    // Board setup & Ludo logic (similar to your original, adapted for multiplayer)
+    const container = document.getElementById("container");
     const ROWS = 15, COLS = 15;
     const cellColors = [];
     for (let i = 0; i < ROWS; i++) {
@@ -74,7 +153,7 @@
       }
     }
 
-    // Paint board
+    // paint the board
     paintBlock(0, 0, 6, 6, "red", true);
     paintBlock(0, 9, 6, 15, "blue", true);
     paintBlock(9, 0, 15, 6, "yellow", true);
@@ -85,7 +164,6 @@
     paintBlock(7, 9, 8, 14, "green");
     paintBlock(6, 6, 9, 9, "black", true);
 
-    //Token path
     const path = [
       [6, 0], [6, 1], [6, 2], [6, 3], [6, 4], [6, 5],
       [5, 6], [4, 6], [3, 6], [2, 6], [1, 6], [0, 6],
@@ -107,17 +185,29 @@
       yellow: [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7], [8, 7]]
     };
 
+    const safePositions = [
+      [6, 1], [1, 8], [8, 13], [13, 6],
+      [2, 6], [12, 8], [8, 2], [6, 12]
+    ];
+
     const startPositions = { red: 1, blue: 14, green: 27, yellow: 40 };
-    const players = ["red", "blue", "green", "yellow"];
-    let turn = "red";
+
+    let playersMap = {};
+    let turn = "";
     let rolledValue = 0;
 
-    const playersMap = {
-      red: createTokens(1, 1, "red"),
-      blue: createTokens(1, 10, "blue"),
-      yellow: createTokens(10, 1, "yellow"),
-      green: createTokens(10, 10, "green")
-    };
+    function setupPlayersMap() {
+      playersMap = {};
+      activePlayers.forEach(color => {
+        let baseRow, baseCol;
+        if (color === "red") { baseRow = 1; baseCol = 1; }
+        else if (color === "blue") { baseRow = 1; baseCol = 10; }
+        else if (color === "yellow") { baseRow = 10; baseCol = 1; }
+        else if (color === "green") { baseRow = 10; baseCol = 10; }
+
+        playersMap[color] = createTokens(baseRow, baseCol, color);
+      });
+    }
 
     function createTokens(baseRow, baseCol, color) {
       return [
@@ -141,8 +231,10 @@
     }
 
     function drawAllTokens() {
-      players.forEach(color => {
-        playersMap[color].forEach(t => drawToken(t.row, t.column, color));
+      Object.keys(playersMap).forEach(color => {
+        playersMap[color].forEach(t => {
+          drawToken(t.row, t.column, color);
+        });
       });
     }
 
@@ -153,33 +245,21 @@
       });
     }
 
-    function diceNumber() {
-      rollBtn.disabled = true;
-      rolledValue = Math.floor(Math.random() * 6) + 1;
-      diceDisplay.textContent = `🎲 ${turn.toUpperCase()} rolled: ${rolledValue}`;
-
-      const tokens = playersMap[turn];
-      const outTokens = tokens.filter(t => t.out && t.homeIndex === -1);
-      const homeTokens = tokens.filter(t => t.homeIndex >= 0 && t.homeIndex < 6);
-      const inBase = tokens.filter(t => !t.out);
-
-      if (rolledValue === 6 && inBase.length === 1 && outTokens.length === 0) {
-        moveToken(tokens.indexOf(inBase[0]), rolledValue);
-      } else if (outTokens.length === 1 && inBase.length === 3 && rolledValue !== 6) {
-        moveToken(tokens.indexOf(outTokens[0]), rolledValue);
-      } else if (outTokens.length + homeTokens.length > 1 || (rolledValue === 6 && inBase.length > 0)) {
-        highlightMovableTokens(rolledValue);
-      } else {
-        nextTurn();
-      }
-    }
+    safePositions.forEach(([r, c]) => {
+      const cell = document.getElementById(`cell-${r}-${c}`);
+      cell.innerText = "X";
+      cell.style.textAlign = "center";
+      cell.style.opacity = ".3";
+      cell.style.border = "2px solid black";
+      cell.style.boxShadow = "inset 0 0 5px 2px white";
+    });
 
     function highlightMovableTokens(roll) {
       const tokens = playersMap[turn];
       tokens.forEach((token, index) => {
         const cell = document.getElementById(`cell-${token.row}-${token.column}`);
-        cell.onclick = () => moveToken(index, roll);
         cell.classList.add("highlight");
+        cell.onclick = () => moveToken(index, roll);
       });
     }
 
@@ -192,7 +272,6 @@
         const [r, c] = path[startIndex];
         clearCell(token.row, token.column);
         Object.assign(token, { out: true, position: startIndex, stepsMoved: 1, row: r, column: c });
-        drawToken(r, c, turn);
       } else if (token.out && token.homeIndex === -1) {
         const newSteps = token.stepsMoved + roll;
         if (newSteps === path.length) {
@@ -214,45 +293,61 @@
         Object.assign(token, { row: r, column: c });
       }
 
+      // Emit the move to server
+      socket.emit("tokenMoved", {
+        roomId,
+        index,
+        color: turn,
+        tokenData: token
+      });
+
       drawAllTokens();
       checkWin(turn);
-      if (roll !== 6) nextTurn();
-      else rollBtn.disabled = false;
+
+      if (roll !== 6) {
+        nextTurn();
+      } else {
+        // If rolled 6, allow same player to roll again
+        if (turn === playerColor) {
+          rollBtn.disabled = false;
+        }
+      }
     }
 
     function checkCollision(token) {
-      players.forEach(color => {
+      const isSafe = safePositions.some(([r, c]) => r === token.row && c === token.column);
+      if (isSafe) return;
+      Object.keys(playersMap).forEach(color => {
         if (color === token.color) return;
         playersMap[color].forEach((t, i) => {
           if (t.out && t.row === token.row && t.column === token.column) {
             clearCell(t.row, t.column);
-            playersMap[color][i] = createTokens(
-              color === "red" ? 1 : color === "blue" ? 1 : 10,
-              color === "red" || color === "yellow" ? 1 : 10,
-              color
-            )[i];
+            // Reset that token back to home base
+            const baseRow = (color === "red" ? 1 : color === "blue" ? 1 : 10);
+            const baseCol = (color === "red" || color === "yellow" ? 1 : 10);
+            const newTokens = createTokens(baseRow, baseCol, color);
+            playersMap[color][i] = newTokens[i];
           }
         });
       });
     }
 
     function checkWin(color) {
-      const playerTokens = playersMap[color];
-      if (playerTokens.every(t => t.homeIndex === 5)) {
-        alert(`${color.toUpperCase()} wins the game! 🎉`);
+      const tokens = playersMap[color];
+      if (tokens.every(t => t.homeIndex === 5)) {
+        alert(`${color.toUpperCase()} wins! 🎉`);
         rollBtn.disabled = true;
       }
     }
 
     function nextTurn() {
-      const idx = players.indexOf(turn);
-      turn = players[(idx + 1) % players.length];
-      rollBtn.disabled = false;
-      diceDisplay.textContent = `Next: ${turn.toUpperCase()}`;
+      const idx = activePlayers.indexOf(turn);
+      turn = activePlayers[(idx + 1) % activePlayers.length];
+      rollBtn.disabled = (playerColor !== turn);
+      diceDisplay.textContent = `🎲 ${turn.toUpperCase()}'s turn`;
     }
 
-    rollBtn.addEventListener("click", diceNumber);
-    drawAllTokens();
+    drawAllTokens();  // initial drawing (though no tokens until startGame)
   </script>
 </body>
 </html>

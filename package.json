@@ -1,0 +1,26 @@
+{
+  "name": "html-canvas",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chetan021/Bricks-and-Ball-.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/chetan021/Bricks-and-Ball-/issues"
+  },
+  "homepage": "https://github.com/chetan021/Bricks-and-Ball-#readme",
+  "dependencies": {
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "socket.io": "^4.8.1"
+  }
+}
