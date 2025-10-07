@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ludo Multiplayer</title>
   <style>
     body {
@@ -13,33 +14,39 @@
       align-items: center;
       padding: 20px;
     }
+
     #container {
       width: 450px;
       display: grid;
       grid-template-columns: repeat(15, 30px);
       grid-template-rows: repeat(15, 30px);
     }
+
     .cell {
       height: 30px;
       width: 30px;
       border: 2px solid black;
       box-sizing: border-box;
     }
+
     button {
       margin-top: 20px;
       padding: 10px 20px;
       font-size: 16px;
     }
+
     #dice {
       margin-top: 10px;
       font-size: 20px;
     }
+
     .highlight {
       box-shadow: 0 0 5px 3px black;
       cursor: pointer;
     }
   </style>
 </head>
+
 <body>
   <div id="container"></div>
   <button id="rollBtn">🎲 Roll Dice</button>
@@ -91,33 +98,57 @@
       diceDisplay.textContent = `🎲 ${color.toUpperCase()} rolled: ${value}`;
       rolledValue = value;
       turn = color;
-      if (color === playerColor) {
-        rollBtn.disabled = true;
-        highlightMovableTokens(rolledValue);
-      } else {
+      const tokens = playersMap[color];
+      const anyTokenOut = tokens.some(t => t.out);
+      const allTokensIn = tokens.every(t => !t.out);
+
+      if (value !== 6 && allTokensIn) {
         rollBtn.disabled = true;
         clearHighlights();
+        nextTurn();
+      } else {
+        if (color === playerColor) {
+          rollBtn.disabled = true;
+          highlightMovableTokens(rolledValue);
+        } else {
+          rollBtn.disabled = true;
+          clearHighlights();
+        }
       }
+
     });
 
     socket.on("tokenMoved", ({ index, color, tokenData }) => {
+      const oldToken = playersMap[color][index];
+
+      // Clear previous position
+      if (oldToken) {
+        clearCell(oldToken.row, oldToken.column);
+      }
+
+      // Update token state
       playersMap[color][index] = tokenData;
+
+      // Draw all tokens again
       drawAllTokens();
-      if (color === playerColor && rolledValue !== 6) {
+
+      if (rolledValue !== 6) {
         nextTurn();
-      } else if (color !== playerColor && rolledValue !== 6) {
-        nextTurn();
-      } else {
-        // if roll was 6, that same player continues
-        if (turn === playerColor) {
-          rollBtn.disabled = false;
-        }
+      } else if (turn === playerColor) {
+        rollBtn.disabled = false;
       }
     });
 
     socket.on("playerLeft", () => {
       alert("A player has left. Game may be disrupted.");
     });
+
+    socket.on("tokenReset", ({ color, index, tokenData }) => {
+  // Update that player's token globally
+  playersMap[color][index] = tokenData;
+  clearCell(tokenData.row, tokenData.column);
+  drawAllTokens();
+});
 
     const rollBtn = document.getElementById("rollBtn");
     const diceDisplay = document.getElementById("dice");
@@ -304,8 +335,9 @@
       drawAllTokens();
       checkWin(turn);
 
-      if (roll !== 6) {
+      if (roll !== 6 && token.out == false) {
         nextTurn();
+        console.log("next");
       } else {
         // If rolled 6, allow same player to roll again
         if (turn === playerColor) {
@@ -317,20 +349,57 @@
     function checkCollision(token) {
       const isSafe = safePositions.some(([r, c]) => r === token.row && c === token.column);
       if (isSafe) return;
+
       Object.keys(playersMap).forEach(color => {
-        if (color === token.color) return;
+        if (color === token.color) return; // don't hit your own
+
         playersMap[color].forEach((t, i) => {
           if (t.out && t.row === token.row && t.column === token.column) {
             clearCell(t.row, t.column);
-            // Reset that token back to home base
-            const baseRow = (color === "red" ? 1 : color === "blue" ? 1 : 10);
-            const baseCol = (color === "red" || color === "yellow" ? 1 : 10);
-            const newTokens = createTokens(baseRow, baseCol, color);
-            playersMap[color][i] = newTokens[i];
+
+            // Base positions per color
+            let baseRow, baseCol;
+            if (color === "red") { baseRow = 1; baseCol = 1; }
+            else if (color === "blue") { baseRow = 1; baseCol = 10; }
+            else if (color === "yellow") { baseRow = 10; baseCol = 1; }
+            else if (color === "green") { baseRow = 10; baseCol = 10; }
+
+            const newTokenPositions = [
+              [baseRow, baseCol],
+              [baseRow, baseCol + 2],
+              [baseRow + 2, baseCol],
+              [baseRow + 2, baseCol + 2],
+            ];
+
+            const [r, c] = newTokenPositions[i];
+
+            // Reset locally
+            const resetToken = {
+              row: r,
+              column: c,
+              out: false,
+              position: -1,
+              homeIndex: -1,
+              stepsMoved: 0,
+              color,
+            };
+            playersMap[color][i] = resetToken;
+
+            // 🔥 Emit reset to server so everyone updates
+            socket.emit("tokenReset", {
+              roomId,
+              color,
+              index: i,
+              tokenData: resetToken
+            });
           }
         });
       });
+
+      drawAllTokens();
     }
+
+
 
     function checkWin(color) {
       const tokens = playersMap[color];
@@ -350,4 +419,5 @@
     drawAllTokens();  // initial drawing (though no tokens until startGame)
   </script>
 </body>
+
 </html>
