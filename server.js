@@ -47,6 +47,8 @@ io.on("connection", socket => {
     console.log(`Room created: ${roomId} by ${socket.id}`);
   });
 
+  
+
   // 🟡 JOIN ROOM
   socket.on("joinRoom", roomId => {
     const room = rooms[roomId];
@@ -111,17 +113,39 @@ io.on("connection", socket => {
   console.log(`Token of ${color} reset after collision in room ${roomId}`);
 });
 
+socket.on("noMove", ({ roomId, color, diceValue }) => {
+  const room = rooms[roomId];
+  if (!room) return;
+
+  console.log(`${color} has no valid moves with dice ${diceValue}`);
+
+  // Normal turn switching
+  const currentIndex = room.players.findIndex(p => p.color === color);
+  const nextColor = room.players[(currentIndex + 1) % room.players.length].color;
+  io.to(roomId).emit("nextTurn", { color: nextColor });
+});
+
   // 🎯 TOKEN MOVE
-  socket.on("tokenMoved", ({ roomId, index, color, tokenData }) => {
-    const room = rooms[roomId];
-    if (!room) return;
+  socket.on("tokenMoved", ({ roomId, index, color, tokenData, diceValue }) => {
+  const room = rooms[roomId];
+  if (!room) return;
 
-    const player = room.players.find(p => p.id === socket.id);
-    if (!player || player.color !== color) return;
+  const player = room.players.find(p => p.id === socket.id);
+  if (!player || player.color !== color) return;
 
-    io.to(roomId).emit("tokenMoved", { index, color, tokenData });
-    console.log(`Token moved in ${roomId} by ${color}`);
-  });
+  // Broadcast move
+  io.to(roomId).emit("tokenMoved", { index, color, tokenData });
+
+  // Handle turn switching globally
+  if (diceValue !== 6) {
+    const currentIndex = room.players.findIndex(p => p.color === color);
+    const nextColor = room.players[(currentIndex + 1) % room.players.length].color;
+    io.to(roomId).emit("nextTurn", { color: nextColor });
+  } else {
+    io.to(roomId).emit("nextTurn", { color });
+  }
+});
+
 
   // ❌ DISCONNECT
   socket.on("disconnect", () => {

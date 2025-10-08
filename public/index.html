@@ -50,6 +50,7 @@
 <body>
   <div id="container"></div>
   <button id="rollBtn">🎲 Roll Dice</button>
+  <h2 id="turnDisplay">Current Turn: </h2>
   <div id="dice">🎲</div>
 
   <!-- Socket.IO client -->
@@ -63,6 +64,18 @@
     let playerColor = "";
     let maxPlayers = 4;
     let activePlayers = [];
+    let playersMap = {};
+    let turn = "";
+    let rolledValue = 0;
+
+    const homeEntryIndex = {
+      red: 50,     // after completing full loop
+      blue: 11,    // adjust based on your path layout
+      green: 24,
+      yellow: 37
+    };
+
+    setupPlayersMap();
 
     if (isHost) {
       maxPlayers = parseInt(prompt("How many players? (2-4)")) || 4;
@@ -90,6 +103,7 @@
       setupPlayersMap();
       drawAllTokens();
       turn = activePlayers[0];
+      updateTurnUI();
       diceDisplay.textContent = `🎲 ${turn.toUpperCase()}'s turn`;
       rollBtn.disabled = (playerColor !== turn);
     });
@@ -144,11 +158,11 @@
     });
 
     socket.on("tokenReset", ({ color, index, tokenData }) => {
-  // Update that player's token globally
-  playersMap[color][index] = tokenData;
-  clearCell(tokenData.row, tokenData.column);
-  drawAllTokens();
-});
+      // Update that player's token globally
+      playersMap[color][index] = tokenData;
+      clearCell(tokenData.row, tokenData.column);
+      drawAllTokens();
+    });
 
     const rollBtn = document.getElementById("rollBtn");
     const diceDisplay = document.getElementById("dice");
@@ -182,6 +196,19 @@
           cellColors[i][j] = color;
         }
       }
+    }
+
+    function setupPlayersMap() {
+      playersMap = {};
+      activePlayers.forEach(color => {
+        let baseRow, baseCol;
+        if (color === "red") { baseRow = 1; baseCol = 1; }
+        else if (color === "blue") { baseRow = 1; baseCol = 10; }
+        else if (color === "yellow") { baseRow = 10; baseCol = 1; }
+        else if (color === "green") { baseRow = 10; baseCol = 10; }
+
+        playersMap[color] = createTokens(baseRow, baseCol, color);
+      });
     }
 
     // paint the board
@@ -221,24 +248,62 @@
       [2, 6], [12, 8], [8, 2], [6, 12]
     ];
 
-    const startPositions = { red: 1, blue: 14, green: 27, yellow: 40 };
+    function drawSafeCells() {
+      safePositions.forEach(([r, c]) => {
+        const cell = document.getElementById(`cell-${r}-${c}`);
+        if (cell) {
+          cell.style.position = "relative";
+          cell.innerHTML = "";
 
-    let playersMap = {};
-    let turn = "";
-    let rolledValue = 0;
+          const star = document.createElement("div");
+          star.className = "safe-star";
+          star.textContent = "★";
+          star.style.position = "absolute";
+          star.style.top = "50%";
+          star.style.left = "50%";
+          star.style.transform = "translate(-50%, -50%)";
+          star.style.fontWeight = "bold";
+          star.style.fontSize = "18px";
+          star.style.color = "rgba(0, 0, 0, 0.4)";
+          star.style.zIndex = "1";
+          star.style.pointerEvents = "none";
+          cell.appendChild(star);
 
-    function setupPlayersMap() {
-      playersMap = {};
-      activePlayers.forEach(color => {
-        let baseRow, baseCol;
-        if (color === "red") { baseRow = 1; baseCol = 1; }
-        else if (color === "blue") { baseRow = 1; baseCol = 10; }
-        else if (color === "yellow") { baseRow = 10; baseCol = 1; }
-        else if (color === "green") { baseRow = 10; baseCol = 10; }
+          const overlay = document.createElement("div");
+          overlay.style.position = "absolute";
+          overlay.style.top = "0";
+          overlay.style.left = "0";
+          overlay.style.width = "100%";
+          overlay.style.height = "100%";
+          overlay.style.background = "rgba(255, 255, 255, 0.3)";
+          overlay.style.zIndex = "0";
+          overlay.style.border = "2px solid black";
+          overlay.style.boxShadow = "inset 0 0 5px rgba(0,0,0,0.2)";
+          overlay.style.pointerEvents = "none";
 
-        playersMap[color] = createTokens(baseRow, baseCol, color);
+          cell.appendChild(overlay);
+          cell.appendChild(star);
+        }
       });
     }
+
+
+    const startPositions = { red: 1, blue: 14, green: 27, yellow: 40 };
+
+    // Tint starting cells (entry points)
+    const spawnCells = {
+      red: path[startPositions.red],
+      blue: path[startPositions.blue],
+      yellow: path[startPositions.yellow],
+      green: path[startPositions.green],
+    };
+
+    Object.entries(spawnCells).forEach(([color, [r, c]]) => {
+      const cell = document.getElementById(`cell-${r}-${c}`);
+      cell.style.background = color;
+      cell.style.opacity = "0.5";
+      cell.style.border = `2px solid ${color}`;
+    });
 
     function createTokens(baseRow, baseCol, color) {
       return [
@@ -249,11 +314,46 @@
       ];
     }
 
-    function drawToken(row, col, color) {
-      const cell = document.getElementById(`cell-${row}-${col}`);
-      cell.style.background = color;
-      cell.style.borderRadius = "50%";
+    function drawToken(token) {
+      const { row, column, color } = token;
+      const cell = document.getElementById(`cell-${row}-${column}`);
+      if (!cell) return;
+
+      // Count how many tokens share this cell
+      const sameCellTokens = [];
+      Object.values(playersMap).forEach(tokens => {
+        tokens.forEach(t => {
+          if (t.row === row && t.column === column && (t.out || t.position >= 0)) {
+            sameCellTokens.push(t);
+          }
+        });
+      });
+
+      // Remove any existing tokens in that cell container first
+      cell.innerHTML = "";
+
+      // Draw stacked or offset tokens
+      sameCellTokens.forEach((t, index) => {
+        const tokenEl = document.createElement("div");
+        tokenEl.classList.add("token");
+        tokenEl.style.background = t.color;
+        tokenEl.style.border = "2px solid white";
+        tokenEl.style.width = "18px";
+        tokenEl.style.height = "18px";
+        tokenEl.style.borderRadius = "50%";
+        tokenEl.style.position = "absolute";
+
+        // Offset pattern (circle)
+        const angle = (index / sameCellTokens.length) * 2 * Math.PI;
+        const offset = 8; // distance from center
+        tokenEl.style.left = `${20 + offset * Math.cos(angle)}px`;
+        tokenEl.style.top = `${20 + offset * Math.sin(angle)}px`;
+
+        tokenEl.style.boxShadow = "0 0 3px black";
+        cell.appendChild(tokenEl);
+      });
     }
+
 
     function clearCell(row, col) {
       const cell = document.getElementById(`cell-${row}-${col}`);
@@ -261,13 +361,87 @@
       cell.style.borderRadius = "0%";
     }
 
+    function updateTurnUI() {
+      const turnDisplay = document.getElementById("turnDisplay");
+      turnDisplay.textContent = `Current Turn: ${turn.toUpperCase()}`;
+      turnDisplay.style.color = turn;
+      diceDisplay.textContent = `🎲 ${turn.toUpperCase()}'s turn`;
+    }
+
     function drawAllTokens() {
+      // Clear all cells first
+      for (let i = 0; i < ROWS; i++) {
+        for (let j = 0; j < COLS; j++) {
+          const cell = document.getElementById(`cell-${i}-${j}`);
+          cell.innerHTML = "";
+          cell.style.background = cellColors[i][j];
+          cell.style.display = "flex";
+          cell.style.alignItems = "center";
+          cell.style.justifyContent = "center";
+          cell.style.position = "relative";
+        }
+      }
+
+      // Collect tokens per cell
+      const cellTokens = {};
       Object.keys(playersMap).forEach(color => {
         playersMap[color].forEach(t => {
-          drawToken(t.row, t.column, color);
+          const key = `${t.row}-${t.column}`;
+          if (!cellTokens[key]) cellTokens[key] = [];
+          cellTokens[key].push(t);
         });
       });
+
+      // Draw tokens neatly
+      Object.keys(cellTokens).forEach(key => {
+        const [r, c] = key.split("-").map(Number);
+        const tokens = cellTokens[key];
+        const cell = document.getElementById(`cell-${r}-${c}`);
+
+        if (tokens.length === 1) {
+          const token = createTokenElement(tokens[0]);
+          token.style.position = "absolute";
+          token.style.top = "50%";
+          token.style.left = "50%";
+          token.style.transform = "translate(-50%, -50%)";
+          token.style.zIndex = "5"; // ensures above safe star
+          cell.appendChild(token);
+        } else {
+          // Arrange multiple tokens in a small circle
+          const radius = 10;
+          tokens.forEach((t, i) => {
+            const token = createTokenElement(t);
+            const angle = (i / tokens.length) * 2 * Math.PI;
+            const offsetX = radius * Math.cos(angle);
+            const offsetY = radius * Math.sin(angle);
+            token.style.position = "absolute";
+            token.style.top = `calc(50% + ${offsetY}px)`;
+            token.style.left = `calc(50% + ${offsetX}px)`;
+            token.style.transform = "translate(-50%, -50%)";
+            token.style.zIndex = "5";
+            cell.appendChild(token);
+          });
+        }
+      });
+
+      // Draw safe zones after tokens (but under them visually)
+      drawSafeCells();
     }
+
+    function createTokenElement(token) {
+      const tokenEl = document.createElement("div");
+      tokenEl.classList.add("token");
+      tokenEl.style.background = token.color;
+      tokenEl.style.width = "20px";
+      tokenEl.style.height = "20px";
+      tokenEl.style.borderRadius = "50%";
+      tokenEl.style.border = "2px solid white";
+      tokenEl.style.boxShadow = "0 0 3px rgba(0,0,0,0.7)";
+      tokenEl.style.zIndex = "5"; // ensure visible over safe cell overlay
+      return tokenEl;
+    }
+
+
 
     function clearHighlights() {
       document.querySelectorAll(".highlight").forEach(cell => {
@@ -276,14 +450,14 @@
       });
     }
 
-    safePositions.forEach(([r, c]) => {
-      const cell = document.getElementById(`cell-${r}-${c}`);
-      cell.innerText = "X";
-      cell.style.textAlign = "center";
-      cell.style.opacity = ".3";
-      cell.style.border = "2px solid black";
-      cell.style.boxShadow = "inset 0 0 5px 2px white";
-    });
+    // safePositions.forEach(([r, c]) => {
+    //   const cell = document.getElementById(`cell-${r}-${c}`);
+    //   cell.innerText = "X";
+    //   cell.style.textAlign = "center";
+    //   cell.style.opacity = ".3";
+    //   cell.style.border = "2px solid black";
+    //   cell.style.boxShadow = "inset 0 0 5px 2px white";
+    // });
 
     function highlightMovableTokens(roll) {
       const tokens = playersMap[turn];
@@ -294,57 +468,126 @@
       });
     }
 
+    function canMoveAnyToken(color, roll) {
+      const tokens = playersMap[color];
+      const L = path.length;
+      const HOME_LEN = homePaths[color].length;
+      const startIdx = startPositions[color];
+
+      for (const token of tokens) {
+        // 🟢 1. Token inside base — can move only if roll === 6
+        if (!token.out && roll === 6) return true;
+
+        // 🟡 2. Token on main path
+        if (token.out && token.homeIndex === -1) {
+          const newSteps = token.stepsMoved + roll;
+          const maxSteps = L + HOME_LEN - 1;
+          if (newSteps <= maxSteps) return true; // valid move within range
+        }
+
+        // 🔵 3. Token inside home path
+        if (token.homeIndex >= 0) {
+          if (token.homeIndex + roll <= HOME_LEN - 1) return true;
+        }
+      }
+
+      // ❌ No valid move found
+      return false;
+    }
+
     function moveToken(index, roll) {
       clearHighlights();
       const token = playersMap[turn][index];
 
+      const L = path.length;
+      const HOME_LEN = homePaths[turn].length;
+      const startIdx = startPositions[turn];
+
+      // 🟢 1. EXIT from base on a 6
       if (!token.out && roll === 6) {
-        const startIndex = startPositions[turn];
-        const [r, c] = path[startIndex];
+        const [r, c] = path[startIdx];
         clearCell(token.row, token.column);
-        Object.assign(token, { out: true, position: startIndex, stepsMoved: 1, row: r, column: c });
-      } else if (token.out && token.homeIndex === -1) {
-        const newSteps = token.stepsMoved + roll;
-        if (newSteps === path.length) {
-          const [r, c] = homePaths[turn][0];
-          clearCell(token.row, token.column);
-          Object.assign(token, { position: -1, homeIndex: 0, row: r, column: c });
-        } else if (newSteps < path.length) {
+        Object.assign(token, {
+          out: true,
+          position: startIdx,
+          stepsMoved: 0,
+          homeIndex: -1,
+          row: r,
+          column: c
+        });
+
+        socket.emit("tokenMoved", { roomId, index, color: turn, tokenData: token, diceValue: roll });
+        drawAllTokens();
+        return;
+      }
+
+      // 🟡 2. MOVE while on main path (not yet in home)
+      if (token.out && token.homeIndex === -1) {
+        let newSteps = token.stepsMoved + roll;
+
+        // total max distance = 1 lap + home path length
+        const maxSteps = L + HOME_LEN - 1;
+        if (newSteps > maxSteps) {
+          console.log("Invalid move — overshoots home");
+          return;
+        }
+
+        // when token finishes one lap and crosses home entry
+        if (newSteps >= L) {
+          // entering home path
+          const stepsIntoHome = newSteps - L;
+          if (stepsIntoHome < HOME_LEN) {
+            clearCell(token.row, token.column);
+            token.position = -1;
+            token.homeIndex = stepsIntoHome;
+            token.stepsMoved = newSteps;
+            const [r, c] = homePaths[turn][stepsIntoHome];
+            token.row = r;
+            token.column = c;
+          }
+        } else {
+          // still on main track
+          const newPos = (startIdx + newSteps) % L;
           clearCell(token.row, token.column);
           token.stepsMoved = newSteps;
-          token.position = (token.position + roll) % path.length;
-          const [r, c] = path[token.position];
-          Object.assign(token, { row: r, column: c });
+          token.position = newPos;
+          const [r, c] = path[newPos];
+          token.row = r;
+          token.column = c;
           checkCollision(token);
         }
-      } else if (token.homeIndex >= 0 && token.homeIndex + roll <= 5) {
-        clearCell(token.row, token.column);
-        token.homeIndex += roll;
-        const [r, c] = homePaths[turn][token.homeIndex];
-        Object.assign(token, { row: r, column: c });
+
+        // ✅ Sync move to server (and server will decide next turn)
+        socket.emit("tokenMoved", { roomId, index, color: turn, tokenData: token, diceValue: roll });
+
+        drawAllTokens();
+        checkWin(turn);
+        return;
       }
 
-      // Emit the move to server
-      socket.emit("tokenMoved", {
-        roomId,
-        index,
-        color: turn,
-        tokenData: token
-      });
+      // 🔵 3. MOVE inside home path
+      if (token.homeIndex >= 0) {
+        if (token.homeIndex + roll <= HOME_LEN - 1) {
+          clearCell(token.row, token.column);
+          token.homeIndex += roll;
+          token.stepsMoved += roll;
+          const [r, c] = homePaths[turn][token.homeIndex];
+          token.row = r;
+          token.column = c;
 
-      drawAllTokens();
-      checkWin(turn);
-
-      if (roll !== 6 && token.out == false) {
-        nextTurn();
-        console.log("next");
-      } else {
-        // If rolled 6, allow same player to roll again
-        if (turn === playerColor) {
-          rollBtn.disabled = false;
+          socket.emit("tokenMoved", { roomId, index, color: turn, tokenData: token, diceValue: roll });
+          drawAllTokens();
+          checkWin(turn);
+        } else {
+          console.log("Cannot move inside home — overshoot");
         }
+        return;
       }
+
+      console.warn("Unhandled moveToken path");
     }
+
+
 
     function checkCollision(token) {
       const isSafe = safePositions.some(([r, c]) => r === token.row && c === token.column);
@@ -392,6 +635,9 @@
               index: i,
               tokenData: resetToken
             });
+            // Give extra roll to the killer
+            rollBtn.disabled = false;
+            diceDisplay.textContent = `🎯 ${token.color.toUpperCase()} got another turn for a kill!`;
           }
         });
       });
@@ -410,13 +656,18 @@
     }
 
     function nextTurn() {
+      diceDisplay.textContent = `🎲 ${turn.toUpperCase()}'s turn`;
+      document.getElementById("turnDisplay").style.color = turn;
+      document.getElementById("turnDisplay").textContent = `Current Turn: ${turn.toUpperCase()}`;
+
       const idx = activePlayers.indexOf(turn);
       turn = activePlayers[(idx + 1) % activePlayers.length];
+      updateTurnUI();
       rollBtn.disabled = (playerColor !== turn);
       diceDisplay.textContent = `🎲 ${turn.toUpperCase()}'s turn`;
     }
 
-    drawAllTokens();  // initial drawing (though no tokens until startGame)
+    // drawAllTokens();  // initial drawing (though no tokens until startGame)
   </script>
 </body>
 
