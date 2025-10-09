@@ -69,10 +69,10 @@
     let rolledValue = 0;
 
     const homeEntryIndex = {
-      red: 50,     // after completing full loop
-      blue: 11,    // adjust based on your path layout
-      green: 24,
-      yellow: 37
+      red: 51,     // after completing full loop
+      blue: 12,    // adjust based on your path layout
+      green: 25,
+      yellow: 38
     };
 
     setupPlayersMap();
@@ -116,9 +116,13 @@
       const anyTokenOut = tokens.some(t => t.out);
       const allTokensIn = tokens.every(t => !t.out);
 
-      if (value !== 6 && allTokensIn) {
+      const canMove = canMoveAnyToken(color, value);
+      if (!canMove) {
         rollBtn.disabled = true;
         clearHighlights();
+        if (color === playerColor) {
+          // alert("No possible moves. Turn skipped.");
+        }
         nextTurn();
       } else {
         if (color === playerColor) {
@@ -129,6 +133,7 @@
           clearHighlights();
         }
       }
+
 
     });
 
@@ -251,41 +256,45 @@
     function drawSafeCells() {
       safePositions.forEach(([r, c]) => {
         const cell = document.getElementById(`cell-${r}-${c}`);
-        if (cell) {
-          cell.style.position = "relative";
-          cell.innerHTML = "";
+        if (!cell) return;
 
-          const star = document.createElement("div");
-          star.className = "safe-star";
-          star.textContent = "★";
-          star.style.position = "absolute";
-          star.style.top = "50%";
-          star.style.left = "50%";
-          star.style.transform = "translate(-50%, -50%)";
-          star.style.fontWeight = "bold";
-          star.style.fontSize = "18px";
-          star.style.color = "rgba(0, 0, 0, 0.4)";
-          star.style.zIndex = "1";
-          star.style.pointerEvents = "none";
-          cell.appendChild(star);
+        // Check if overlay already exists to prevent duplication
+        if (cell.querySelector('.safe-overlay')) return;
 
-          const overlay = document.createElement("div");
-          overlay.style.position = "absolute";
-          overlay.style.top = "0";
-          overlay.style.left = "0";
-          overlay.style.width = "100%";
-          overlay.style.height = "100%";
-          overlay.style.background = "rgba(255, 255, 255, 0.3)";
-          overlay.style.zIndex = "0";
-          overlay.style.border = "2px solid black";
-          overlay.style.boxShadow = "inset 0 0 5px rgba(0,0,0,0.2)";
-          overlay.style.pointerEvents = "none";
+        // Create a container for overlay (zIndex 0)
+        const overlay = document.createElement("div");
+        overlay.className = "safe-overlay";
+        overlay.style.position = "absolute";
+        overlay.style.top = "0";
+        overlay.style.left = "0";
+        overlay.style.width = "100%";
+        overlay.style.height = "100%";
+        overlay.style.background = "rgba(255, 255, 255, 0.3)";
+        overlay.style.zIndex = "0"; // behind tokens
+        overlay.style.border = "2px solid black";
+        overlay.style.boxShadow = "inset 0 0 5px rgba(0,0,0,0.2)";
+        overlay.style.pointerEvents = "none";
 
-          cell.appendChild(overlay);
-          cell.appendChild(star);
-        }
+        // Create the safe star icon
+        const star = document.createElement("div");
+        star.className = "safe-star";
+        star.textContent = "★";
+        star.style.position = "absolute";
+        star.style.top = "50%";
+        star.style.left = "50%";
+        star.style.transform = "translate(-50%, -50%)";
+        star.style.fontWeight = "bold";
+        star.style.fontSize = "18px";
+        star.style.color = "rgba(0, 0, 0, 0.4)";
+        star.style.zIndex = "0"; // also behind tokens
+        star.style.pointerEvents = "none";
+
+        // Append to cell
+        cell.appendChild(overlay);
+        cell.appendChild(star);
       });
     }
+
 
 
     const startPositions = { red: 1, blue: 14, green: 27, yellow: 40 };
@@ -521,49 +530,42 @@
         return;
       }
 
-      // 🟡 2. MOVE while on main path (not yet in home)
       if (token.out && token.homeIndex === -1) {
         let newSteps = token.stepsMoved + roll;
+        const maxSteps = L + HOME_LEN;
 
-        // total max distance = 1 lap + home path length
-        const maxSteps = L + HOME_LEN - 1;
-        if (newSteps > maxSteps) {
+        if (newSteps > maxSteps - 1) {
           console.log("Invalid move — overshoots home");
           return;
         }
 
-        // when token finishes one lap and crosses home entry
-        if (newSteps >= L) {
-          // entering home path
-          const stepsIntoHome = newSteps - L;
-          if (stepsIntoHome < HOME_LEN) {
-            clearCell(token.row, token.column);
-            token.position = -1;
-            token.homeIndex = stepsIntoHome;
-            token.stepsMoved = newSteps;
-            const [r, c] = homePaths[turn][stepsIntoHome];
-            token.row = r;
-            token.column = c;
-          }
-        } else {
-          // still on main track
+        clearCell(token.row, token.column);
+        token.stepsMoved = newSteps;
+
+        if (newSteps < L) {
+          // Still on main path
           const newPos = (startIdx + newSteps) % L;
-          clearCell(token.row, token.column);
-          token.stepsMoved = newSteps;
           token.position = newPos;
           const [r, c] = path[newPos];
           token.row = r;
           token.column = c;
           checkCollision(token);
+        } else {
+          // Entering home path
+          const stepsIntoHome = newSteps - L;
+          token.position = -1;
+          token.homeIndex = stepsIntoHome;
+          const [r, c] = homePaths[turn][stepsIntoHome];
+          token.row = r;
+          token.column = c;
         }
 
-        // ✅ Sync move to server (and server will decide next turn)
         socket.emit("tokenMoved", { roomId, index, color: turn, tokenData: token, diceValue: roll });
-
         drawAllTokens();
         checkWin(turn);
         return;
       }
+
 
       // 🔵 3. MOVE inside home path
       if (token.homeIndex >= 0) {
